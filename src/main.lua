@@ -1,0 +1,2 @@
+-- name: Bubble Chat
+-- description: Roblox-style bubble chat.\n2013 chat bubbles :)\n\n- kermeet

@@ -1,0 +1,9 @@
+# Kate
+*.kate-swp
+
+# Build output
+out/
+*.zip
+
+# Lua
+.luarc.json
