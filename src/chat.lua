@@ -32,13 +32,63 @@ local function on_chat_message(sender, message)
 	if #bubble_list == 3 then
 		table.remove(bubble_list, 1)
 	end
+
+	local stripped_message = string.strip_colors(message)
+
+	djui_hud_set_resolution(RESOLUTION_DJUI)
+	djui_hud_set_font(FONT_ALIASED)
+
+	local total_max_width = MAX_BUBBLE_WIDTH - BUBBLE_WIDTH_PADDING
+
+	local lines = { "" }
+	local current_line = 1
+
+	local words = stripped_message:split(" ")
+
+	for i, word in next, words do
+		local working_line = lines[current_line]
+		if i ~= 1 then working_line = working_line .. " " end
+		working_line = working_line .. word
+
+		local word_width = djui_hud_measure_text(word) * TEXT_SIZE
+		if word_width >= total_max_width then
+			working_line = lines[current_line]
+			if i ~= 1 then working_line = working_line .. " " end
+			for char_index = 1, word:len() do
+				local character = word:sub(char_index, char_index)
+				working_line = working_line .. character
+
+				local line_width = djui_hud_measure_text(working_line) * TEXT_SIZE
+				if line_width > total_max_width then
+					current_line = current_line + 1
+					working_line = character
+				end
+				lines[current_line] = working_line
+			end
+		end
+
+		local line_width = djui_hud_measure_text(working_line) * TEXT_SIZE
+		if line_width > total_max_width then
+			current_line = current_line + 1
+			working_line = word
+		end
+		lines[current_line] = working_line
+	end
+
+	local max_line_width = 0
+	for i, line in next, lines do
+		max_line_width = math.max(max_line_width, djui_hud_measure_text(line) * TEXT_SIZE)
+	end
+
 	---@type BubbleMessage
 	local bubble_message = {
 		sender_index = sender.playerIndex,
 		timestamp = current_time,
-		time_to_live = 12,
+		time_to_live = fif(sender.playerIndex == 0, 8, 12),
 		message = message,
-		message_s = string.strip_colors(message)
+		message_s = stripped_message,
+		message_l = lines,
+		message_w = max_line_width
 	}
 	if sender.playerIndex == 0 then
 		bubble_message.time_to_live = 8
@@ -63,77 +113,40 @@ local function render_chat_bubble(origin, bubble, distance, tail)
 	if difference > time_to_fade then
 		alpha = math.max(0, 1 - (difference - time_to_fade))
 	end
+	
+	tail = tail == true
 
 	local x = origin.x
 	local y = origin.y
 
-	tail = tail == true
-	local words = bubble.message_s:split(" ")
+	local lines = bubble.message_l
 
-	local total_max_width = 368
+	local bubble_width = bubble.message_w
+	local bubble_height = TEXT_LINE_HEIGHT * #lines
 
-	djui_hud_set_font(FONT_ALIASED)
-
-	local lines = { "" }
-	local current_line = 1
-	for i, word in next, words do
-		local working_line = lines[current_line]
-		if i ~= 1 then working_line = working_line .. " " end
-		working_line = working_line .. word
-
-		local word_width = djui_hud_measure_text(word) * 1.5
-		if word_width >= total_max_width then
-			working_line = lines[current_line]
-			if i ~= 1 then working_line = working_line .. " " end
-			for char_index = 1, word:len() do
-				local character = word:sub(char_index, char_index)
-				working_line = working_line .. character
-
-				local line_width = djui_hud_measure_text(working_line) * 1.5
-				if line_width > total_max_width then
-					current_line = current_line + 1
-					working_line = character
-				end
-				lines[current_line] = working_line
-			end
-		end
-
-		local line_width = djui_hud_measure_text(working_line) * 1.5
-		if line_width > total_max_width then
-			current_line = current_line + 1
-			working_line = word
-		end
-		lines[current_line] = working_line
-	end
-
-	local max_line_width = 0
-	for i, line in next, lines do
-		max_line_width = math.max(max_line_width, djui_hud_measure_text(line) * 1.5)
-	end
-
-	local bubble_height = 34 * #lines
 	local text_alpha = 1
 	if tail and difference <= 0.5 then
+		-- this shit is so ass *holds back tears* (looks good though)
 		max_line_width = max_line_width * (math.min(1, (difference + 0.6) / 0.7) ^ 2)
 		bubble_height = bubble_height * (math.min(1, (difference + 0.3) / 0.4) ^ 2)
 		text_alpha = (math.min(1, (difference + 0.1) / 0.3) ^ 2)
 	end
-	bubble_height = bubble_height + 24 + 16
+	bubble_height = bubble_height + 48
 
 	y = y - bubble_height * scale
 
 	djui_hud_set_color(255, 255, 255, alpha * 255)
 	if tail then
-		render_bubble_with_tail(x, y, max_line_width + 60, bubble_height, true, scale)
+		render_bubble_with_tail(x, y, max_line_width + BUBBLE_WIDTH_PADDING * 2, bubble_height, true, scale)
 	else
-		render_bubble(x, y, max_line_width + 60, bubble_height, true, scale)
+		render_bubble(x, y, max_line_width + BUBBLE_WIDTH_PADDING * 2, bubble_height, true, scale)
 	end
 
 	djui_hud_set_color(0, 0, 0, text_alpha * alpha * 255)
 	for i, line in next, lines do
-		local line_width = djui_hud_measure_text(line) * 1.5 * scale
-		djui_hud_print_text(line, x - line_width / 2, y + (12 * scale), 1.5 * scale)
-		y = y + (34 * scale)
+		local line_width = djui_hud_measure_text(line) * TEXT_SIZE * scale
+		djui_hud_print_text(line, x - line_width / 2, y + (12 * scale), TEXT_SIZE * scale)
+		y = y + (TEXT_LINE_HEIGHT * scale)
 	end
 
 	return bubble_height * scale
@@ -184,21 +197,25 @@ local function render_bubbles()
 	end
 	for _, i in next, render_indices do
 		local mario = gMarioStates[i]
+		
 		local distance = vec3f_dist(mario.pos, lakitu_position)
+		
 		local gfx_pos = mario.marioObj.header.gfx.pos
 		local origin = { x = gfx_pos.x, y = gfx_pos.y + 196, z = gfx_pos.z }
+
+		--- djui_hud_world_pos_to_screen_pos behaves weirdly if I don't do this :(
 		djui_hud_set_resolution(RESOLUTION_N64)
 		djui_hud_world_pos_to_screen_pos(origin, origin)
-		djui_hud_set_resolution(RESOLUTION_DJUI)
 
+		djui_hud_set_resolution(RESOLUTION_DJUI)
 		origin = { x = origin.x * djui_aspect_x, y = origin.y * djui_aspect_y, z = origin.z }
+
 		local bubble_list = bubbles[i]
 		while #bubble_list > 0 do
-			if current_time - bubble_list[1].timestamp > 12 then
-				table.remove(bubble_list, 1)
-			else
+			if current_time - bubble_list[1].timestamp < 12 then
 				break
 			end
+			table.remove(bubble_list, 1)
 		end
 		if #bubble_list > 0 then
 			for i = #bubble_list, 1, -1 do
