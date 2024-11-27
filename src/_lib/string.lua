@@ -1,5 +1,3 @@
-if DO_NOT_RUN then return end
-
 ---@param s string
 ---@param sep string?
 ---@return string[]
