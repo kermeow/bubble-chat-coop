@@ -19,6 +19,8 @@ hook_event(HOOK_UPDATE, update_time)
 ---@field time_to_live number
 ---@field message string
 ---@field message_s string
+---@field message_l string[]
+---@field message_w number
 
 local bubbles = {}
 for i = 0, MAX_PLAYERS do
@@ -113,21 +115,21 @@ local function render_chat_bubble(origin, bubble, distance, tail)
 	if difference > time_to_fade then
 		alpha = math.max(0, 1 - (difference - time_to_fade))
 	end
-	
+
 	tail = tail == true
 
-	local x = origin.x
-	local y = origin.y
+	local x = math.floor(origin.x + 0.5)
+	local y = math.floor(origin.y + 0.5)
 
 	local lines = bubble.message_l
 
-	local bubble_width = bubble.message_w
+	local bubble_width = bubble.message_w + BUBBLE_WIDTH_PADDING * 2
 	local bubble_height = TEXT_LINE_HEIGHT * #lines
 
 	local text_alpha = 1
 	if tail and difference <= 0.5 then
 		-- this shit is so ass *holds back tears* (looks good though)
-		max_line_width = max_line_width * (math.min(1, (difference + 0.6) / 0.7) ^ 2)
+		bubble_width = bubble_width * (math.min(1, (difference + 0.6) / 0.7) ^ 2)
 		bubble_height = bubble_height * (math.min(1, (difference + 0.3) / 0.4) ^ 2)
 		text_alpha = (math.min(1, (difference + 0.1) / 0.3) ^ 2)
 	end
@@ -137,11 +139,12 @@ local function render_chat_bubble(origin, bubble, distance, tail)
 
 	djui_hud_set_color(255, 255, 255, alpha * 255)
 	if tail then
-		render_bubble_with_tail(x, y, max_line_width + BUBBLE_WIDTH_PADDING * 2, bubble_height, true, scale)
+		render_bubble_with_tail(x, y, bubble_width, bubble_height, true, scale)
 	else
-		render_bubble(x, y, max_line_width + BUBBLE_WIDTH_PADDING * 2, bubble_height, true, scale)
+		render_bubble(x, y, bubble_width, bubble_height, true, scale)
 	end
 
+	djui_hud_set_font(FONT_ALIASED)
 	djui_hud_set_color(0, 0, 0, text_alpha * alpha * 255)
 	for i, line in next, lines do
 		local line_width = djui_hud_measure_text(line) * TEXT_SIZE * scale
@@ -197,9 +200,9 @@ local function render_bubbles()
 	end
 	for _, i in next, render_indices do
 		local mario = gMarioStates[i]
-		
+
 		local distance = vec3f_dist(mario.pos, lakitu_position)
-		
+
 		local gfx_pos = mario.marioObj.header.gfx.pos
 		local origin = { x = gfx_pos.x, y = gfx_pos.y + 196, z = gfx_pos.z }
 
@@ -207,19 +210,21 @@ local function render_bubbles()
 		djui_hud_set_resolution(RESOLUTION_N64)
 		djui_hud_world_pos_to_screen_pos(origin, origin)
 
-		djui_hud_set_resolution(RESOLUTION_DJUI)
-		origin = { x = origin.x * djui_aspect_x, y = origin.y * djui_aspect_y, z = origin.z }
+		if origin.z < 0 then
+			djui_hud_set_resolution(RESOLUTION_DJUI)
+			origin = { x = origin.x * djui_aspect_x, y = origin.y * djui_aspect_y, z = origin.z }
 
-		local bubble_list = bubbles[i]
-		while #bubble_list > 0 do
-			if current_time - bubble_list[1].timestamp < 12 then
-				break
+			local bubble_list = bubbles[i]
+			while #bubble_list > 0 do
+				if current_time - bubble_list[1].timestamp < 12 then
+					break
+				end
+				table.remove(bubble_list, 1)
 			end
-			table.remove(bubble_list, 1)
-		end
-		if #bubble_list > 0 then
-			for i = #bubble_list, 1, -1 do
-				origin.y = origin.y - render_chat_bubble(origin, bubble_list[i], distance, i == #bubble_list)
+			if #bubble_list > 0 then
+				for i = #bubble_list, 1, -1 do
+					origin.y = origin.y - render_chat_bubble(origin, bubble_list[i], distance, i == #bubble_list)
+				end
 			end
 		end
 	end

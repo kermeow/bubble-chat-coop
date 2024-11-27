@@ -16,5 +16,5 @@ function render_bubble_with_tail(x, y, w, h, centered, scale)
 		x = x - (w / 2) * scale
 	end
 	render_bubble(x, y, w, h, false, scale)
-	djui_hud_render_texture(tail_texture, x + ((w / 2) - 16) * scale, y + (h - 14) * scale, scale, scale)
+	djui_hud_render_texture(tail_texture, x + ((w / 2) - 16) * scale, y + math.floor((h - 12) * scale), scale, scale)
 end
