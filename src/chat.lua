@@ -203,8 +203,9 @@ local function render_bubbles()
 
 		local distance = vec3f_dist(mario.pos, lakitu_position)
 
+		local head_pos = mario.marioBodyState.headPos
 		local gfx_pos = mario.marioObj.header.gfx.pos
-		local origin = { x = gfx_pos.x, y = gfx_pos.y + 196, z = gfx_pos.z }
+		local origin = { x = gfx_pos.x, y = head_pos.y + 80, z = gfx_pos.z }
 
 		--- djui_hud_world_pos_to_screen_pos behaves weirdly if I don't do this :(
 		djui_hud_set_resolution(RESOLUTION_N64)
