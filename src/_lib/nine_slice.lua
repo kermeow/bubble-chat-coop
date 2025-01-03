@@ -1,3 +1,5 @@
+local djui_hud_render_texture_tile = djui_hud_render_texture_tile
+
 ---@class NineSlice
 ---@field left integer
 ---@field right integer

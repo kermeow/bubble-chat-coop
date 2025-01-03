@@ -1,15 +1,6 @@
-local _time = get_time()
-local current_time = _time
-local frames = 0
+local current_time = 0
 local function update_time()
-	local new_time = get_time()
-	if new_time > _time then
-		frames = 0
-		_time = new_time
-	end
-	frames = frames + 1
-
-	current_time = _time + (frames / 30)
+	current_time = get_global_timer() / 30
 end
 hook_event(HOOK_UPDATE, update_time)
 
@@ -26,6 +17,11 @@ local bubbles = {}
 for i = 0, MAX_PLAYERS do
 	bubbles[i] = {}
 end
+
+local function on_player_connected(mario)
+	bubbles[mario.playerIndex] = {}
+end
+hook_event(HOOK_ON_PLAYER_CONNECTED, on_player_connected)
 
 ---@param sender MarioState
 ---@param message string
@@ -156,25 +152,27 @@ local function render_chat_bubble(origin, bubble, distance, tail)
 end
 
 local function render_bubbles()
-	local render_indices = { 0 } -- always render self
+	local render_indices = {}
 
 	-- Purge non-existent players & make list of marios for rendering
 	local local_net_player = gNetworkPlayers[0]
-	for i = 1, MAX_PLAYERS do
+	for i = 0, MAX_PLAYERS - 1 do
 		local net_player = gNetworkPlayers[i]
 		local bubble_list = bubbles[i]
+		if #bubble_list == 0 then
+			goto next_player_index
+		end
 		if net_player ~= nil and net_player.connected then
 			if net_player.currActNum == local_net_player.currActNum and
 				net_player.currAreaIndex == local_net_player.currAreaIndex and
 				net_player.currLevelNum == local_net_player.currLevelNum then
 				table.insert(render_indices, i)
 			end
-		else
-			if #bubble_list > 0 then
-				bubbles[i] = {}
-			end
 		end
+		::next_player_index::
 	end
+
+	if #render_indices == 0 then return end
 
 	-- Sort by distance descending
 	local lakitu_position = gLakituState.curPos
