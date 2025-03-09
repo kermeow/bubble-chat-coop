@@ -1,9 +1,6 @@
-# Kate
-*.kate-swp
+# lubber
 
-# Build output
-out/
+.lubber/
+dist/
+*.luac
 *.zip
-
-# Lua
-.luarc.json
